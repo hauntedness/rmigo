@@ -16,13 +16,6 @@ import (
 	"time"
 )
 
-type Node struct {
-	ID     string
-	Type   string
-	Name   string
-	Parent *Node
-}
-
 type Config struct {
 	BaseUrl     string                  `json:"base_url"`          // rtc base url
 	Username    string                  `json:"username"`          // username

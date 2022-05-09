@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/hauntedness/rtigo/pkg"
 )
@@ -23,6 +25,8 @@ func main() {
 		ListAll(os.Args)
 	case "cat":
 		Concatenate(os.Args)
+	case "edit":
+		EditItem(os.Args)
 	default:
 		panic(errors.New("rtc.exe -h for all commands"))
 	}
@@ -56,9 +60,8 @@ func Login(args []string) {
 
 func CurrentDir(args []string) {
 	fs := flag.NewFlagSet("cd", flag.ExitOnError)
-	var user, password string
-	fs.StringVar(&user, "user", "", "username of rtc")
-	fs.StringVar(&password, "password", "", "password of rtc")
+	var path string
+	fs.StringVar(&path, "path", "", `the path, can be "~/project/iteration" or "../iteration" or "iteration" or "./iteration"`)
 	if len(args) > 2 {
 		args = os.Args[2:]
 	} else {
@@ -68,16 +71,24 @@ func CurrentDir(args []string) {
 	if err != nil {
 		panic(err)
 	}
-	if user != "" && password != "" {
-		pkg.InitConfig(user, password)
-		client := pkg.NewRTCClient()
-		err = client.Login(user, password)
-		if err != nil {
-			panic(err)
-		}
-		//TODO try login
-		log.Println("login success")
+	s := strings.Split(path, "/")
+	if len(s) == 0 {
+		panic(errors.New("invalid path"))
 	}
+	switch s[0] {
+	case "~":
+		pkg.Conf.CurrentDir = pkg.Conf.CurrentDir.Clear()
+		//TODO, add one by one
+		for _, v := range s[1:] {
+			pkg.NewRTCClient().ListSprints(v)
+		}
+	case "..":
+		pkg.Conf.CurrentDir = pkg.Conf.CurrentDir.Pop()
+		//TODO, add one by one
+	default:
+		//TODO, add sub and sub of sub and ...
+	}
+	fmt.Println(pkg.Conf.CurrentDir.LineAge())
 }
 
 func ListAll(args []string) {
@@ -100,5 +111,9 @@ func ListAll(args []string) {
 }
 
 func Concatenate(args []string) {
+
+}
+
+func EditItem(args []string) {
 
 }
