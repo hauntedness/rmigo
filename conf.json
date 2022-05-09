@@ -1,0 +1,17 @@
+{
+    "base_url": "",
+    "username": "user1",
+    "spell": "aZZqSPVOKo7CefgwYN4G9nAu1q0TWmOV2qd8aSbfwZA",
+    "cursor": {
+        "ID": "test_project",
+        "Type": "project",
+        "Name": "what the hell",
+        "Parent": {
+            "ID": "root",
+            "Type": "void",
+            "Name": "~",
+            "Parent": null
+        }
+    },
+    "current_file": ""
+}
