@@ -29,7 +29,7 @@ type Config struct {
 }
 
 var Conf *Config
-
+var AppName = "rmigo"
 var conf_path string
 
 var root = &Node{
@@ -44,12 +44,12 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = os.MkdirAll(path.Join(configdir, "rtc client"), 0666)
+	err = os.MkdirAll(path.Join(configdir, AppName), 0666)
 	if err != nil {
 		panic(err)
 	}
 	Conf = &Config{}
-	conf_path = path.Join(configdir, "rtc client", "config.json")
+	conf_path = path.Join(configdir, AppName, "config.json")
 	Conf.runes = time.Now().Format("200601") + "-3.1415926"
 	Conf.Cookies = make(map[string]*http.Cookie)
 	Conf.CurrentDir = root
@@ -115,7 +115,7 @@ func CreateConfig() {
 	if err != nil {
 		panic(err)
 	}
-	b, err := json.Marshal(Conf)
+	b, err := json.MarshalIndent(Conf, "", "\t")
 	if err != nil {
 		panic(err)
 	}

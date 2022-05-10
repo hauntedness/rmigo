@@ -8,6 +8,9 @@ type Node struct {
 }
 
 func (n *Node) Pop() (parent *Node) {
+	if n.Parent == nil {
+		return n.Clear()
+	}
 	parent = n.Parent
 	n.Parent = nil
 	return

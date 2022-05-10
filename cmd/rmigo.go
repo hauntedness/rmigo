@@ -15,7 +15,7 @@ func main() {
 	if len(os.Args) < 1 {
 		log.Println("rtc.exe -h for all commands")
 	}
-
+	pkg.LoadConfig()
 	switch os.Args[1] {
 	case "login":
 		Login(os.Args)
@@ -60,10 +60,12 @@ func Login(args []string) {
 
 func CurrentDir(args []string) {
 	fs := flag.NewFlagSet("cd", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Println(`passing the path, can be "~/project/iteration" or "../iteration" or "iteration" or "./iteration"`)
+	}
 	var path string
-	fs.StringVar(&path, "path", "", `the path, can be "~/project/iteration" or "../iteration" or "iteration" or "./iteration"`)
 	if len(args) > 2 {
-		args = os.Args[2:]
+		args = args[2:]
 	} else {
 		args = []string{"-h"}
 	}
@@ -71,24 +73,25 @@ func CurrentDir(args []string) {
 	if err != nil {
 		panic(err)
 	}
+	path = fs.Arg(0)
 	s := strings.Split(path, "/")
-	if len(s) == 0 {
+	if len(s) == 0 || len(s) > 3 {
 		panic(errors.New("invalid path"))
 	}
+	var cd = pkg.Conf.CurrentDir
 	switch s[0] {
 	case "~":
-		pkg.Conf.CurrentDir = pkg.Conf.CurrentDir.Clear()
-		//TODO, add one by one
-		for _, v := range s[1:] {
-			pkg.NewRTCClient().ListSprints(v)
-		}
+		cd = cd.Clear()
+		cd = move(s, cd)
 	case "..":
-		pkg.Conf.CurrentDir = pkg.Conf.CurrentDir.Pop()
-		//TODO, add one by one
+		cd = cd.Pop()
+		cd = move(s, cd)
 	default:
-		//TODO, add sub and sub of sub and ...
+		cd = move(s, cd)
 	}
+	pkg.Conf.CurrentDir = cd
 	fmt.Println(pkg.Conf.CurrentDir.LineAge())
+	pkg.CreateConfig()
 }
 
 func ListAll(args []string) {
@@ -116,4 +119,33 @@ func Concatenate(args []string) {
 
 func EditItem(args []string) {
 
+}
+
+func move(s []string, cd *pkg.Node) *pkg.Node {
+	client := pkg.NewRTCClient()
+	if cd == nil || cd.Type == "void" {
+		if len(s) > 1 {
+			p, err := client.GetProject(s[1])
+			if err != nil {
+				panic(err)
+			}
+			cd = cd.Push(p.Node)
+		}
+		if len(s) > 2 {
+			sprint, err := client.GetSprint(s[2])
+			if err != nil {
+				panic(err)
+			}
+			cd = cd.Push(sprint.Node)
+		}
+	} else if cd.Type == "project" {
+		if len(s) > 1 {
+			sprint, err := client.GetSprint(s[1])
+			if err != nil {
+				panic(err)
+			}
+			cd = cd.Push(sprint.Node)
+		}
+	}
+	return cd
 }
