@@ -18,3 +18,10 @@ func TestCurrentDir2(t *testing.T) {
 	var args = []string{"./rmigo.exe", "cd", ".."}
 	CurrentDir(args)
 }
+
+func TestListAll(t *testing.T) {
+	pkg.InitConfig("user1", "123456")
+	pkg.LoadConfig()
+	var args = []string{"./rmigo.exe", "ll", "~/p1/sprint11"}
+	ListAll(args)
+}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -12,8 +11,9 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 1 {
-		log.Println("rtc.exe -h for all commands")
+	if len(os.Args) < 2 || len(os.Args) == 2 && (strings.ToLower(os.Args[1]) == "-h" || strings.ToLower(os.Args[1]) == "--help") {
+		fmt.Printf("commands:\n\trmigo login\n\trmigo cd\n\trmigo ll\n\trmigo search\n\trmigo cat\n\trmigo edit")
+		os.Exit(0)
 	}
 	pkg.LoadConfig()
 	switch os.Args[1] {
@@ -23,8 +23,10 @@ func main() {
 		CurrentDir(os.Args)
 	case "ll":
 		ListAll(os.Args)
+	case "search":
+		Search(os.Args)
 	case "cat":
-		Concatenate(os.Args)
+		Cat(os.Args)
 	case "edit":
 		EditItem(os.Args)
 	default:
@@ -35,17 +37,10 @@ func main() {
 func Login(args []string) {
 	fs := flag.NewFlagSet("login", flag.ExitOnError)
 	var user, password string
+	var err error
 	fs.StringVar(&user, "user", "", "username of rtc")
 	fs.StringVar(&password, "password", "", "password of rtc")
-	if len(args) > 2 {
-		args = args[2:]
-	} else {
-		args = []string{"-h"}
-	}
-	err := fs.Parse(args)
-	if err != nil {
-		panic(err)
-	}
+	parse(fs, args)
 	if user != "" && password != "" {
 		pkg.InitConfig(user, password)
 		client := pkg.NewRTCClient()
@@ -54,73 +49,91 @@ func Login(args []string) {
 			panic(err)
 		}
 		//TODO try login
-		log.Println("login success")
+		fmt.Println("login success")
 	}
 }
 
 func CurrentDir(args []string) {
 	fs := flag.NewFlagSet("cd", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Println(`passing the path, can be "~/project/iteration" or "../iteration" or "iteration" or "./iteration"`)
+		fmt.Println("Usage of cd:")
+		fs.PrintDefaults()
+		fmt.Println("rmigo cd ~/proj/xx")
+		fmt.Println("rmigo cd ../xx")
+		fmt.Println("rmigo cd xx")
+		fmt.Println("rmigo cd ./xx")
 	}
 	var path string
-	if len(args) > 2 {
-		args = args[2:]
-	} else {
-		args = []string{"-h"}
-	}
-	err := fs.Parse(args)
-	if err != nil {
-		panic(err)
-	}
+	parse(fs, args)
 	path = fs.Arg(0)
 	s := strings.Split(path, "/")
 	if len(s) == 0 || len(s) > 3 {
-		panic(errors.New("invalid path"))
+		panic(errors.New("invalid path:" + path))
 	}
 	var cd = pkg.Conf.CurrentDir
 	switch s[0] {
 	case "~":
 		cd = cd.Clear()
-		cd = move(s, cd)
 	case "..":
 		cd = cd.Pop()
-		cd = move(s, cd)
-	default:
-		cd = move(s, cd)
 	}
+	cd = move(s, cd)
 	pkg.Conf.CurrentDir = cd
 	fmt.Println(pkg.Conf.CurrentDir.LineAge())
 	pkg.CreateConfig()
 }
 
 func ListAll(args []string) {
-	fs := flag.NewFlagSet("cd", flag.ExitOnError)
-	var a, i, p, d bool
-	fs.BoolVar(&a, "a", false, "list all items instead of current users")
-	fs.BoolVar(&i, "i", false, "list all items of iteration i instead of current iteration")
-	fs.BoolVar(&p, "p", false, "list all items of project p instead of current project")
-	fs.BoolVar(&d, "d", false, "list all defects instead of all stories")
-	if len(args) > 2 {
-		args = os.Args[2:]
+	fs := flag.NewFlagSet("ll", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Println("Usage of ll:")
+		fs.PrintDefaults()
+		fmt.Println("")
+		fmt.Println("rmigo ll      \tlist all stories of current iteration")
+		fmt.Println("rmigo ll ../xx\tlist all stories of sibling iteration xx")
+		fmt.Println("rmigo ll -d   \tlist all defects of current iteration")
+	}
+	var d bool
+	var p string
+	fs.BoolVar(&d, "d", false, "list defect, default story")
+	fs.StringVar(&p, "p", "", "list all items of project p, default current project")
+	parse(fs, args)
+	if fs.NArg() == 1 {
+		CurrentDir([]string{"rmigo", "cd", fs.Arg(0)})
+	}
+	if pkg.Conf.CurrentDir.Type != "sprint" {
+		panic("invalid iteration")
+	}
+	var iteration = pkg.Conf.CurrentDir.ID
+	client := pkg.NewRTCClient()
+	if d {
+		defects := client.ListDefectOfSprint(iteration)
+		for i := range defects {
+			fmt.Printf("%+v\n", defects[i])
+		}
 	} else {
-		args = []string{"-h"}
+		s := client.ListStoryOfSprint(iteration)
+		for i := range s {
+			fmt.Printf("%+v\n", s[i])
+		}
 	}
-	err := fs.Parse(args)
-	if err != nil {
-		panic(err)
-	}
-
 }
 
-func Concatenate(args []string) {
+func Cat(args []string) {
 
 }
 
 func EditItem(args []string) {
 
 }
-
+func Search(args []string) {
+	fs := flag.NewFlagSet("find", flag.ExitOnError)
+	var a, i, p bool
+	fs.BoolVar(&a, "a", false, "list all items including story and defect, default only story")
+	fs.BoolVar(&i, "i", false, "list all items of iteration i, default current iteration")
+	fs.BoolVar(&p, "p", false, "list all items of project p, default current project")
+	parse(fs, args)
+}
 func move(s []string, cd *pkg.Node) *pkg.Node {
 	client := pkg.NewRTCClient()
 	if cd == nil || cd.Type == "void" {
@@ -148,4 +161,16 @@ func move(s []string, cd *pkg.Node) *pkg.Node {
 		}
 	}
 	return cd
+}
+
+func parse(fs *flag.FlagSet, args []string) {
+	if len(args) > 2 {
+		args = args[2:]
+	} else {
+		args = []string{"-h"}
+	}
+	err := fs.Parse(args)
+	if err != nil {
+		panic(err)
+	}
 }

@@ -246,11 +246,27 @@ func (c *RTCClient) ListStoryOfProject(id string) (list []*Story) {
 
 //TODO
 func (c *RTCClient) ListStoryOfSprint(id string) (list []*Story) {
-	for _, s2 := range Mock().storyList {
-		if s2.Dir == nil {
+	var stories = Mock().storyList
+	for i := range stories {
+		var s = stories[i]
+		if s.Dir == nil {
 			continue
-		} else if s2.Dir.ID == id {
-			list = append(list, &s2)
+		} else if s.Dir.ID == id {
+			list = append(list, &s)
+		}
+	}
+	return
+}
+
+//TODO
+func (c *RTCClient) ListDefectOfSprint(id string) (list []*Defect) {
+	var defects = Mock().defectList
+	for i := range defects {
+		var d = defects[i]
+		if d.Dir == nil {
+			continue
+		} else if d.Dir.ID == id {
+			list = append(list, &d)
 		}
 	}
 	return
